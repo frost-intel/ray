@@ -40,6 +40,11 @@ def get_tensor_transport_manager(
         if _gloo_tensor_transport_manager is None:
             _gloo_tensor_transport_manager = CollectiveTensorTransport(tensor_transport)
         return _gloo_tensor_transport_manager
+    elif tensor_transport == Backend.TORCH_XCCL:
+        global _xccl_tensor_transport_manager
+        if _xccl_tensor_transport_manager is None:
+            _xccl_tensor_transport_manager = CollectiveTensorTransport(tensor_transport)
+        return _xccl_tensor_transport_manager
     elif tensor_transport == Backend.NCCL:
         global _nccl_tensor_transport_manager
         if _nccl_tensor_transport_manager is None:
@@ -55,6 +60,8 @@ def device_match_transport(device: "torch.device", tensor_transport: Backend) ->
         return device.type == "cuda" or device.type == "cpu"
     elif tensor_transport == Backend.TORCH_GLOO:
         return device.type == "cpu"
+    elif tensor_transport == Backend.TORCH_XCCL:
+        return device.type == "xpu"
     elif tensor_transport == Backend.NCCL:
         return device.type == "cuda"
     else:

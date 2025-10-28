@@ -126,6 +126,7 @@ class TensorTransportEnum(Enum):
     OBJECT_STORE = TensorTransport.Value("OBJECT_STORE")
     NCCL = TensorTransport.Value("NCCL")
     GLOO = TensorTransport.Value("GLOO")
+    XCCL = TensorTransport.Value("XCCL")
     NIXL = TensorTransport.Value("NIXL")
 
     @classmethod

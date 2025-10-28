@@ -43,6 +43,7 @@ class Backend(object):
     GLOO = "gloo"
     # Use gloo through torch.distributed.
     TORCH_GLOO = "torch_gloo"
+    TORCH_XCCL = "torch_xccl"
     NIXL = "nixl"
     UNRECOGNIZED = "unrecognized"
 
@@ -50,7 +51,10 @@ class Backend(object):
         backend = getattr(Backend, name.upper(), Backend.UNRECOGNIZED)
         if backend == Backend.UNRECOGNIZED:
             raise ValueError(
-                "Unrecognized backend: '{}'. Only NCCL is supported".format(name)
+                "Unrecognized backend: '{}'. Supported backends: {}.".format(
+                    name, 
+                    [attr for attr in dir(Backend) if not attr.startswith('_') and attr != 'UNRECOGNIZED']
+                )
             )
         if backend == Backend.MPI:
             raise RuntimeError("Ray does not support MPI backend.")

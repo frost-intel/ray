@@ -7,7 +7,7 @@ import ray.experimental.internal_kv as internal_kv
 from ray.experimental.collective.communicator import CommunicatorHandle
 from ray.experimental.collective.util import get_address_and_port
 from ray.util.annotations import PublicAPI
-from ray.util.collective.collective_group.torch_gloo_collective_group import (
+from ray.util.collective.collective_group.torch_collective_group import (
     get_master_address_metadata_key,
 )
 from ray.util.collective.types import Backend
@@ -150,7 +150,7 @@ def create_collective_group(
         raise ValueError(f"All actors must be unique, got: {actors}")
 
     metadata_key = None
-    if backend == Backend.GLOO:
+    if backend == Backend.GLOO or backend == Backend.TORCH_XCCL:
         # Perform extra setup for torch.distributed.
         # torch.distributed requires a master address and port. Find a suitable
         # port on one of the actors.

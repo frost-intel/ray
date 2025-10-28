@@ -13,7 +13,7 @@ from . import types
 from ray.experimental.collective.util import (
     get_address_and_port as _get_address_and_port,
 )
-from ray.util.collective.collective_group.torch_gloo_collective_group import (
+from ray.util.collective.collective_group.torch_collective_group import (
     get_master_address_metadata_key as _get_master_addr_key,
 )
 
@@ -30,8 +30,9 @@ except ImportError:
 
 
 try:
-    from ray.util.collective.collective_group.torch_gloo_collective_group import (
+    from ray.util.collective.collective_group.torch_collective_group import (
         TorchGLOOGroup,
+        TorchXCCLGroup,
     )
 
     _TORCH_DISTRIBUTED_AVAILABLE = True
@@ -95,9 +96,14 @@ class GroupManager(object):
         backend = types.Backend(backend)
         if backend == types.Backend.MPI:
             raise RuntimeError("Ray does not support MPI.")
-        elif backend == types.Backend.GLOO or backend == types.Backend.TORCH_GLOO:
+        elif backend in [
+            types.Backend.GLOO,
+            types.Backend.TORCH_GLOO,
+            types.Backend.TORCH_XCCL,
+        ]:
             # Rendezvous: ensure a MASTER_ADDR:MASTER_PORT is published in internal_kv.
             metadata_key = _get_master_addr_key(group_name)
+            is_xccl = backend == types.Backend.TORCH_XCCL
             if rank == 0:
                 addr, port = _get_address_and_port()
                 _internal_kv._internal_kv_put(metadata_key, f"{addr}:{port}")
@@ -112,14 +118,17 @@ class GroupManager(object):
                         break
                     if time.time() > deadline_s:
                         raise TimeoutError(
-                            f"Timed out waiting for GLOO rendezvous metadata for group '{group_name}'."
+                            f"Timed out waiting for rendezvous metadata for group '{group_name}'."
                         )
                     time.sleep(0.05)
 
             logger.debug(
-                "Creating torch.distributed GLOO group: '{}'...".format(group_name)
+                f"Creating torch.distributed group: '{group_name}'..."
             )
-            g = TorchGLOOGroup(world_size, rank, group_name, gloo_timeout)
+            if is_xccl:
+                g = TorchXCCLGroup(world_size, rank, group_name)
+            else:
+                g = TorchGLOOGroup(world_size, rank, group_name, gloo_timeout)
         elif backend == types.Backend.NCCL:
             _check_backend_availability(backend)
             logger.debug("Creating NCCL group: '{}'...".format(group_name))
@@ -816,6 +825,9 @@ def _check_backend_availability(backend: types.Backend):
         if not nccl_available():
             raise RuntimeError("NCCL is not available.")
     elif backend == types.Backend.TORCH_GLOO:
+        if not torch_distributed_available():
+            raise RuntimeError("torch.distributed is not available.")
+    elif backend == types.Backend.TORCH_XCCL:
         if not torch_distributed_available():
             raise RuntimeError("torch.distributed is not available.")
     elif backend == types.Backend.NIXL:
